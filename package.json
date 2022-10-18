@@ -1,6 +1,6 @@
 {
-  "name": "template-node-ts-docker",
-  "version": "1.0.0",
+  "name": "nso-login",
+  "version": "0.0.1",
   "author": "https://github.com/namosuke",
   "license": "MIT",
   "dependencies": {
