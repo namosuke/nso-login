@@ -214,12 +214,12 @@ class NSOLogin {
 
   /**
    * @param idToken IDトークン
-   * @param fData f APIのリザルト(NSO)
+   * @param fDataNSO f APIのリザルト(NSO)
    * @param nsoAppVersion NSOアプリバージョン
    */
   async pullRegistrationToken(
     idToken: string,
-    fData: FData,
+    fDataNSO: FData,
     nsoAppVersion: string
   ) {
     const url = "https://api-lp1.znc.srv.nintendo.net/v3/Account/Login";
@@ -228,9 +228,9 @@ class NSOLogin {
         naCountry: "JP",
         naBirthday: "2000-01-01",
         language: "ja-JP",
-        f: fData.f,
-        timestamp: fData.timestamp,
-        requestId: fData.request_id,
+        f: fDataNSO.f,
+        timestamp: fDataNSO.timestamp,
+        requestId: fDataNSO.request_id,
         naIdToken: idToken,
       },
     };
@@ -256,17 +256,17 @@ class NSOLogin {
 
   /**
    * @param idToken IDトークン
-   * @param fData f APIのリザルト(NSO)
+   * @param fDataNSO f APIのリザルト(NSO)
    * @param nsoAppVersion NSOアプリバージョン
    * @return 登録トークン
    */
   async getRegistrationToken(
     idToken: string,
-    fData: FData,
+    fDataNSO: FData,
     nsoAppVersion: string
   ) {
     if (this.registrationToken === null) {
-      await this.pullRegistrationToken(idToken, fData, nsoAppVersion);
+      await this.pullRegistrationToken(idToken, fDataNSO, nsoAppVersion);
     }
     return this.registrationToken as string;
   }
@@ -408,11 +408,11 @@ const nsoLogin = new NSOLogin();
   console.log(nsoAppVersion);
   const accessToken = await nsoLogin.getAccessToken(sessionToken);
   console.log(accessToken);
-  const fData = await nsoLogin.getFDataNSO(accessToken);
-  console.log(fData);
+  const fDataNSO = await nsoLogin.getFDataNSO(accessToken);
+  console.log(fDataNSO);
   const registrationToken = await nsoLogin.getRegistrationToken(
     accessToken,
-    fData,
+    fDataNSO,
     nsoAppVersion
   );
   console.log(registrationToken);
