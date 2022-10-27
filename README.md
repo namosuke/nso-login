@@ -1,35 +1,105 @@
-# template-node-ts-docker
+# nso-login
 
-Node.js、TypeScript、Docker のテンプレート
+Login Helper for Nintendo Switch Online
 
-## 使い方
+## Overview
 
-### 開発用に起動
+You don't need to know how NSO works. This Node.js library calls API instead of you. Request's result is automatically cached while using same instance.
 
-```sh
-yarn dev
-```
-
-実行されるファイルは`src/app.ts`です。
-
-### 本番用に起動
+## Installation
 
 ```sh
-yarn build
-yarn start
+yarn add nso-login
 ```
 
-### Docker で本番用に起動
+## Usage
 
-コマンド例：
+Before running programs, you need to get a something valid token and set to instance.
 
-```sh
-docker build -t project-name .
-docker run --rm -it project-name
-// とか
-docker run -it -d --restart always --env-file .env -p 3000:3000 project-name
+`approvalLink` property is one of the good example:
+
+1. Get a login URL from `.getLoginURL()`.
+2. Open the URL on your browser.
+3. Login to your account.
+4. Copy link of red button that labeled "connect".
+5. The link is `approvalLink`. Set it like `nsoLogin.approvalLink = "npf71b963c1b7b6d119://auth..."`.
+
+Getting bullet token:
+
+```ts
+import NSOLogin from "nso-login";
+
+const nsoLogin = new NSOLogin();
+
+(async () => {
+  nsoLogin.approvalLink = process.env.APPROVAL_LINK as string;
+  const bulletToken = await nsoLogin.getBulletToken();
+  console.log(bulletToken);
+})();
 ```
 
-## 環境変数について
+Getting many tokens:
 
-`.env`ファイルがあれば、`process.env.DATABASE_URL`のような書き方で値を読み込めます。
+```ts
+import NSOLogin from "nso-login";
+
+const nsoLogin = new NSOLogin();
+
+(async () => {
+  nsoLogin.approvalLink = process.env.APPROVAL_LINK as string;
+  const sessionToken = await nsoLogin.getSessionToken();
+  console.log(sessionToken);
+  const nsoAppVersion = await nsoLogin.getNSOAppVersion();
+  console.log(nsoAppVersion);
+  const accessToken = await nsoLogin.getAccessToken();
+  console.log(accessToken);
+  const fDataNSO = await nsoLogin.getFDataNSO();
+  console.log(fDataNSO);
+  const registrationToken = await nsoLogin.getRegistrationToken();
+  console.log(registrationToken);
+  const fDataApp = await nsoLogin.getFDataApp();
+  console.log(fDataApp);
+  const webServiceToken = await nsoLogin.getWebServiceToken();
+  console.log(webServiceToken);
+  const bulletToken = await nsoLogin.getBulletToken();
+  console.log(bulletToken);
+})();
+```
+
+You can use any parameters:
+
+```ts
+import NSOLogin from "nso-login";
+
+const nsoLogin = new NSOLogin();
+
+(async () => {
+  const loginURL = await nsoLogin.getLoginURL();
+  console.log(loginURL);
+  const approvalLink = process.env.APPROVAL_LINK as string;
+  const sessionToken = await nsoLogin.getSessionToken(approvalLink);
+  console.log(sessionToken);
+  const nsoAppVersion = await nsoLogin.getNSOAppVersion();
+  console.log(nsoAppVersion);
+  const accessToken = await nsoLogin.getAccessToken(sessionToken);
+  console.log(accessToken);
+  const fDataNSO = await nsoLogin.getFDataNSO(accessToken);
+  console.log(fDataNSO);
+  const registrationToken = await nsoLogin.getRegistrationToken(
+    accessToken,
+    fDataNSO,
+    nsoAppVersion
+  );
+  console.log(registrationToken);
+  const fDataApp = await nsoLogin.getFDataApp(registrationToken);
+  console.log(fDataApp);
+  const webServiceToken = await nsoLogin.getWebServiceToken(
+    registrationToken,
+    fDataApp,
+    nsoAppVersion
+  );
+  console.log(webServiceToken);
+  const bulletToken = await nsoLogin.getBulletToken(webServiceToken);
+  console.log(bulletToken);
+})();
+```
