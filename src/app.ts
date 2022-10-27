@@ -444,35 +444,4 @@ class NSOLogin {
   async getCredentials(sessionToken: string) {}
 }
 
-const nsoLogin = new NSOLogin();
-
-(async () => {
-  const loginURL = await nsoLogin.getLoginURL();
-  console.log(loginURL);
-  const approvalLink =
-    "npf71b963c1b7b6d119://auth#session_state=da0d403b20ed1128cba9c3da46386e049587bccbad582199ca225b8b692e59b9&session_token_code=eyJhbGciOiJIUzI1NiJ9.eyJzdGM6YyI6InRZTFBPNVB4cEstRFRjQUhKWHVnRDd6dHZBWlFsbzBEUVFwM2F1NXp0dU0iLCJzdGM6c2NwIjpbMCw4LDksMTcsMjNdLCJzdWIiOiI0OTdjYmUyZmRiN2IwNzliIiwiZXhwIjoxNjY2ODg2ODAwLCJpYXQiOjE2NjY4ODYyMDAsInR5cCI6InNlc3Npb25fdG9rZW5fY29kZSIsImF1ZCI6IjcxYjk2M2MxYjdiNmQxMTkiLCJpc3MiOiJodHRwczovL2FjY291bnRzLm5pbnRlbmRvLmNvbSIsInN0YzptIjoiUzI1NiIsImp0aSI6IjYzNzk5NjY0MDM1In0.82bSXnFg8h6tMoZSDBeUN6AqCHEHWcJ86Mn3SVy2VME&state=V6DSwHXbqC4rspCn_ArvfkpG1WFSvtNYrhugtfqOHsF6SYyX";
-  const sessionToken = await nsoLogin.getSessionToken(approvalLink);
-  console.log(sessionToken);
-  const nsoAppVersion = await nsoLogin.getNSOAppVersion();
-  console.log(nsoAppVersion);
-  const accessToken = await nsoLogin.getAccessToken(sessionToken);
-  console.log(accessToken);
-  const fDataNSO = await nsoLogin.getFDataNSO(accessToken);
-  console.log(fDataNSO);
-  const registrationToken = await nsoLogin.getRegistrationToken(
-    accessToken,
-    fDataNSO,
-    nsoAppVersion
-  );
-  console.log(registrationToken);
-  const fDataApp = await nsoLogin.getFDataApp(registrationToken);
-  console.log(fDataApp);
-  const webServiceToken = await nsoLogin.getWebServiceToken(
-    registrationToken,
-    fDataApp,
-    nsoAppVersion
-  );
-  console.log(webServiceToken);
-  const bulletToken = await nsoLogin.getBulletToken(webServiceToken);
-  console.log(bulletToken);
-})();
+export default NSOLogin;
