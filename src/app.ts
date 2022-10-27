@@ -1,13 +1,15 @@
 import packageJson from "../package.json";
 
-type NSOLoginOptions = {};
-type FData = { f: string; timestamp: number; request_id: string };
+export type NSOLoginOptions = {};
+export type FData = { f: string; timestamp: number; request_id: string };
 
 class NSOLogin {
   constructor(options?: NSOLoginOptions) {}
 
   /** ニンテンドーアカウント選択画面のURL */
   loginURL: null | string = null;
+
+  /** ニンテンドーアカウント選択画面のパラメータ */
   loginParams = {
     state: "V6DSwHXbqC4rspCn_ArvfkpG1WFSvtNYrhugtfqOHsF6SYyX",
     redirect_uri: "npf71b963c1b7b6d119://auth",
@@ -36,6 +38,9 @@ class NSOLogin {
     return this.loginURL as string;
   }
 
+  /** 「この人にする」のアドレス */
+  approvalLink: null | string = null;
+
   /** セッショントークン */
   sessionToken: null | string = null;
   sessionTokenCodeVerifier = "OwaTAOolhambwvY3RXSD-efxqdBEVNnQkc0bBJ7zaak";
@@ -46,7 +51,7 @@ class NSOLogin {
   async pullSessionToken(approvalLink: string) {
     const sessionTokenCode = /de=(.*?)&/.exec(approvalLink)?.[1];
     if (sessionTokenCode === undefined) {
-      throw new Error("Invalid approvalLink");
+      throw new Error("approvalLink must contain sessionTokenCode");
     }
     const url = "https://accounts.nintendo.com/connect/1.0.0/api/session_token";
     const params = {
@@ -63,11 +68,15 @@ class NSOLogin {
       },
     });
     if (response.status !== 200) {
-      throw new Error((await response.json()).error_description);
+      throw new Error(
+        `Request failed with status ${response.status}: ${
+          (await response.json()).error_description
+        }`
+      );
     }
     const sessionToken = (await response.json()).session_token;
     if (typeof sessionToken !== "string") {
-      throw new Error("Cannot find session_token in response");
+      throw new Error("Request succeeded but sessionToken is not found");
     }
     this.sessionToken = sessionToken;
   }
@@ -76,9 +85,14 @@ class NSOLogin {
    * @param approvalLink 「この人にする」のアドレス
    * @return セッショントークン
    */
-  async getSessionToken(approvalLink: string) {
+  async getSessionToken(approvalLink?: string) {
     if (this.sessionToken === null) {
-      await this.pullSessionToken(approvalLink);
+      if (approvalLink === undefined && this.approvalLink === null) {
+        throw new Error("Must specify approvalLink");
+      }
+      await this.pullSessionToken(
+        approvalLink ?? (this.approvalLink as string)
+      );
     }
     return this.sessionToken as string;
   }
@@ -92,7 +106,7 @@ class NSOLogin {
     const json = await response.json();
     const nsoAppVersion = json.results[0].version;
     if (typeof nsoAppVersion !== "string") {
-      throw new Error("Cannot find NSO app version in response");
+      throw new Error("AppStore API returned invalid data");
     }
     this.nsoAppVersion = nsoAppVersion;
   }
@@ -131,17 +145,17 @@ class NSOLogin {
       },
     });
     if (response.status !== 200) {
-      throw new Error("Failed to get access token");
+      throw new Error(`Request failed with status ${response.status}`);
     }
     const json = await response.json();
     const accessToken = json.access_token;
     if (typeof accessToken !== "string") {
-      throw new Error("Cannot find access_token in response");
+      throw new Error("Request succeeded but accessToken is not found");
     }
     this.accessToken = accessToken;
     const idToken = json.id_token;
     if (typeof idToken !== "string") {
-      throw new Error("Cannot find id_token in response");
+      throw new Error("Request succeeded but idToken is not found");
     }
     this.idToken = idToken;
   }
@@ -150,11 +164,26 @@ class NSOLogin {
    * @param sessionToken セッショントークン
    * @return アクセストークン
    */
-  async getAccessToken(sessionToken: string) {
+  async getAccessToken(sessionToken?: string) {
     if (this.accessToken === null) {
-      await this.pullAccessToken(sessionToken);
+      await this.pullAccessToken(
+        sessionToken ?? this.sessionToken ?? (await this.getSessionToken())
+      );
     }
     return this.accessToken as string;
+  }
+
+  /**
+   * @param sessionToken セッショントークン
+   * @return IDトークン
+   */
+  async getIDToken(sessionToken?: string) {
+    if (this.idToken === null) {
+      await this.pullAccessToken(
+        sessionToken ?? this.sessionToken ?? (await this.getSessionToken())
+      );
+    }
+    return this.idToken as string;
   }
 
   /**
@@ -181,7 +210,9 @@ class NSOLogin {
     });
     if (response.status !== 200) {
       throw new Error(
-        `Failed to get f data because ${(await response.json()).reason}`
+        `Request Failed with status ${response.status}: ${
+          (await response.json()).reason
+        }`
       );
     }
     const json = await response.json();
@@ -190,7 +221,7 @@ class NSOLogin {
       typeof json.timestamp !== "number" ||
       typeof json.request_id !== "string"
     ) {
-      throw new Error("Invalid f data");
+      throw new Error("fData invalid");
     }
     return json as FData;
   }
@@ -202,9 +233,12 @@ class NSOLogin {
    * @param accessToken アクセストークン
    * @return f API(NSO)のリザルト
    */
-  async getFDataNSO(accessToken: string) {
+  async getFDataNSO(accessToken?: string) {
     if (this.fDataNSO === null) {
-      this.fDataNSO = await this.getFData(accessToken, 1);
+      this.fDataNSO = await this.getFData(
+        accessToken ?? this.accessToken ?? (await this.getAccessToken()),
+        1
+      );
     }
     return this.fDataNSO;
   }
@@ -244,12 +278,12 @@ class NSOLogin {
       },
     });
     if (response.status !== 200) {
-      throw new Error("Failed to get registration token");
+      throw new Error(`Request failed with status ${response.status}`);
     }
     const json = await response.json();
     const registrationToken = json.result.webApiServerCredential.accessToken;
     if (typeof registrationToken !== "string") {
-      throw new Error("Cannot find webApiServerCredential in response");
+      throw new Error("Request succeeded but registrationToken is not found");
     }
     this.registrationToken = registrationToken;
   }
@@ -261,12 +295,16 @@ class NSOLogin {
    * @return 登録トークン
    */
   async getRegistrationToken(
-    idToken: string,
-    fDataNSO: FData,
-    nsoAppVersion: string
+    idToken?: string,
+    fDataNSO?: FData,
+    nsoAppVersion?: string
   ) {
     if (this.registrationToken === null) {
-      await this.pullRegistrationToken(idToken, fDataNSO, nsoAppVersion);
+      await this.pullRegistrationToken(
+        idToken ?? this.idToken ?? (await this.getIDToken()),
+        fDataNSO ?? this.fDataNSO ?? (await this.getFDataNSO()),
+        nsoAppVersion ?? this.nsoAppVersion ?? (await this.getNSOAppVersion())
+      );
     }
     return this.registrationToken as string;
   }
@@ -278,9 +316,14 @@ class NSOLogin {
    * @param registrationToken 登録トークン
    * @return f API(App)のリザルト
    */
-  async getFDataApp(registrationToken: string) {
+  async getFDataApp(registrationToken?: string) {
     if (this.fDataApp === null) {
-      this.fDataApp = await this.getFData(registrationToken, 2);
+      this.fDataApp = await this.getFData(
+        registrationToken ??
+          this.registrationToken ??
+          (await this.getRegistrationToken()),
+        2
+      );
     }
     return this.fDataApp;
   }
@@ -337,15 +380,17 @@ class NSOLogin {
    * @return ウェブサービストークン
    */
   async getWebServiceToken(
-    registrationToken: string,
-    fDataApp: FData,
-    nsoAppVersion: string
+    registrationToken?: string,
+    fDataApp?: FData,
+    nsoAppVersion?: string
   ) {
     if (this.webServiceToken === null) {
       await this.pullWebServiceToken(
-        registrationToken,
-        fDataApp,
-        nsoAppVersion
+        registrationToken ??
+          this.registrationToken ??
+          (await this.getRegistrationToken()),
+        fDataApp ?? this.fDataApp ?? (await this.getFDataApp()),
+        nsoAppVersion ?? this.nsoAppVersion ?? (await this.getNSOAppVersion())
       );
     }
     return this.webServiceToken as string;
@@ -381,9 +426,13 @@ class NSOLogin {
    * @param webServiceToken ウェブサービストークン
    * @return バレットトークン
    */
-  async getBulletToken(webServiceToken: string) {
+  async getBulletToken(webServiceToken?: string) {
     if (this.bulletToken === null) {
-      await this.pullBulletToken(webServiceToken);
+      await this.pullBulletToken(
+        webServiceToken ??
+          this.webServiceToken ??
+          (await this.getWebServiceToken())
+      );
     }
     return this.bulletToken as string;
   }
@@ -401,7 +450,7 @@ const nsoLogin = new NSOLogin();
   const loginURL = await nsoLogin.getLoginURL();
   console.log(loginURL);
   const approvalLink =
-    "npf71b963c1b7b6d119://auth#session_state=da0d403b20ed1128cba9c3da46386e049587bccbad582199ca225b8b692e59b9&session_token_code=eyJhbGciOiJIUzI1NiJ9.eyJzdGM6YyI6InRZTFBPNVB4cEstRFRjQUhKWHVnRDd6dHZBWlFsbzBEUVFwM2F1NXp0dU0iLCJqdGkiOiI2Mzc1NzI5NzcxOCIsInR5cCI6InNlc3Npb25fdG9rZW5fY29kZSIsInN0YzpzY3AiOlswLDgsOSwxNywyM10sInN0YzptIjoiUzI1NiIsImV4cCI6MTY2NjgwODkzNiwiaWF0IjoxNjY2ODA4MzM2LCJzdWIiOiI0OTdjYmUyZmRiN2IwNzliIiwiYXVkIjoiNzFiOTYzYzFiN2I2ZDExOSIsImlzcyI6Imh0dHBzOi8vYWNjb3VudHMubmludGVuZG8uY29tIn0.OxXFds1woLO0dOhlhMR6BpfWdCXKGkJS9UIREs6j6Ek&state=V6DSwHXbqC4rspCn_ArvfkpG1WFSvtNYrhugtfqOHsF6SYyX";
+    "npf71b963c1b7b6d119://auth#session_state=da0d403b20ed1128cba9c3da46386e049587bccbad582199ca225b8b692e59b9&session_token_code=eyJhbGciOiJIUzI1NiJ9.eyJzdGM6YyI6InRZTFBPNVB4cEstRFRjQUhKWHVnRDd6dHZBWlFsbzBEUVFwM2F1NXp0dU0iLCJzdGM6c2NwIjpbMCw4LDksMTcsMjNdLCJzdWIiOiI0OTdjYmUyZmRiN2IwNzliIiwiZXhwIjoxNjY2ODg2ODAwLCJpYXQiOjE2NjY4ODYyMDAsInR5cCI6InNlc3Npb25fdG9rZW5fY29kZSIsImF1ZCI6IjcxYjk2M2MxYjdiNmQxMTkiLCJpc3MiOiJodHRwczovL2FjY291bnRzLm5pbnRlbmRvLmNvbSIsInN0YzptIjoiUzI1NiIsImp0aSI6IjYzNzk5NjY0MDM1In0.82bSXnFg8h6tMoZSDBeUN6AqCHEHWcJ86Mn3SVy2VME&state=V6DSwHXbqC4rspCn_ArvfkpG1WFSvtNYrhugtfqOHsF6SYyX";
   const sessionToken = await nsoLogin.getSessionToken(approvalLink);
   console.log(sessionToken);
   const nsoAppVersion = await nsoLogin.getNSOAppVersion();
