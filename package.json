@@ -2,14 +2,20 @@
   "name": "nso-login",
   "version": "0.0.3",
   "description": "Login helper for Nintendo Switch Online",
+  "keywords": [
+    "nintendo",
+    "switch",
+    "nodejs",
+    "typescript",
+    "nso"
+  ],
   "author": "https://github.com/namosuke",
   "homepage": "https://github.com/namosuke/nso-login",
   "license": "MIT",
   "main": "dist/src/index.js",
   "types": "dist/src/index.d.ts",
   "files": [
-    "dist/src/",
-    "package.json"
+    "dist/"
   ],
   "dependencies": {},
   "devDependencies": {
