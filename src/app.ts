@@ -247,12 +247,12 @@ class NSOLogin {
   registrationToken: null | string = null;
 
   /**
-   * @param idToken IDトークン
+   * @param accessToken アクセストークン
    * @param fDataNSO f APIのリザルト(NSO)
    * @param nsoAppVersion NSOアプリバージョン
    */
   async pullRegistrationToken(
-    idToken: string,
+    accessToken: string,
     fDataNSO: FData,
     nsoAppVersion: string
   ) {
@@ -265,7 +265,7 @@ class NSOLogin {
         f: fDataNSO.f,
         timestamp: fDataNSO.timestamp,
         requestId: fDataNSO.request_id,
-        naIdToken: idToken,
+        naIdToken: accessToken,
       },
     };
     const response = await fetch(url, {
@@ -281,27 +281,29 @@ class NSOLogin {
       throw new Error(`Request failed with status ${response.status}`);
     }
     const json = await response.json();
-    const registrationToken = json.result.webApiServerCredential.accessToken;
+    const registrationToken = json.result?.webApiServerCredential?.accessToken;
     if (typeof registrationToken !== "string") {
-      throw new Error("Request succeeded but registrationToken is not found");
+      throw new Error(
+        `Request succeeded but registrationToken is not found: ${json.errorMessage}`
+      );
     }
     this.registrationToken = registrationToken;
   }
 
   /**
-   * @param idToken IDトークン
+   * @param accessToken アクセストークン
    * @param fDataNSO f APIのリザルト(NSO)
    * @param nsoAppVersion NSOアプリバージョン
    * @return 登録トークン
    */
   async getRegistrationToken(
-    idToken?: string,
+    accessToken?: string,
     fDataNSO?: FData,
     nsoAppVersion?: string
   ) {
     if (this.registrationToken === null) {
       await this.pullRegistrationToken(
-        idToken ?? this.idToken ?? (await this.getIDToken()),
+        accessToken ?? this.accessToken ?? (await this.getAccessToken()),
         fDataNSO ?? this.fDataNSO ?? (await this.getFDataNSO()),
         nsoAppVersion ?? this.nsoAppVersion ?? (await this.getNSOAppVersion())
       );
