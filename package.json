@@ -1,19 +1,22 @@
 {
   "name": "nso-login",
   "version": "0.0.1",
+  "description": "Login helper for Nintendo Switch Online",
   "author": "https://github.com/namosuke",
+  "homepage": "https://github.com/namosuke/nso-login",
   "license": "MIT",
-  "dependencies": {
-    "dotenv": "^16.0.2"
-  },
+  "dependencies": {},
   "devDependencies": {
     "@types/node": "^18.7.16",
     "ts-node": "^10.9.1",
-    "typescript": "^4.8.3"
+    "typescript": "^4.8.3",
+    "dotenv": "^16.0.2"
   },
   "scripts": {
-    "dev": "ts-node -r dotenv/config src/app.ts",
+    "dev": "ts-node -r dotenv/config src/index.ts",
     "build": "tsc",
-    "start": "node -r dotenv/config out/app.js || echo NOTE: run `yarn build` first"
+    "start": "node dist/index.js || echo NOTE: run `yarn build` first",
+    "prepare": "yarn build",
+    "test": "ts-node -r dotenv/config src/test/1.ts"
   }
 }

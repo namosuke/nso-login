@@ -1,4 +1,4 @@
-import NSOLogin from "../app";
+import NSOLogin from "..";
 
 const nsoLogin = new NSOLogin();
 
