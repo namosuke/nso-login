@@ -24,6 +24,9 @@ Before running programs, you need to get a something valid token and set to inst
 4. Copy link of red button that labeled "connect".
 5. The link is `approvalLink`. Set it like `nsoLogin.approvalLink = "npf71b963c1b7b6d119://auth..."`.
 
+> **Note**
+> approvalLink expires in 900 seconds.
+
 Getting bullet token:
 
 ```ts
@@ -102,4 +105,18 @@ const nsoLogin = new NSOLogin();
   const bulletToken = await nsoLogin.getBulletToken(webServiceToken);
   console.log(bulletToken);
 })();
+```
+
+## Test
+
+Write your `approvalLink` to `.env`:
+
+```env
+APPROVAL_LINK="npf71b963c1b7b6d119://auth#session_state=..."
+```
+
+Then run test command:
+
+```sh
+yarn test test/1.ts
 ```

@@ -26,8 +26,7 @@
   },
   "scripts": {
     "dev": "ts-node -r dotenv/config src/index.ts",
-    "build": "tsc",
-    "start": "node dist/index.js || echo NOTE: run `yarn build` first",
-    "prepare": "rm -rf dist && yarn build"
+    "prepare": "rm -rf dist && tsc",
+    "test": "ts-node -r dotenv/config"
   }
 }

@@ -12,5 +12,5 @@
     "skipLibCheck": true,
     "resolveJsonModule": true
   },
-  "exclude": ["test"]
+  "exclude": ["test", "node_modules", "dist"]
 }
