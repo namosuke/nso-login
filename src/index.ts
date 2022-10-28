@@ -1,4 +1,6 @@
 import packageJson from "../package.json";
+import base64url from "base64url";
+import * as crypto from "crypto";
 
 export type NSOLoginOptions = {};
 export type FData = { f: string; timestamp: number; request_id: string };
@@ -6,36 +8,39 @@ export type FData = { f: string; timestamp: number; request_id: string };
 class NSOLogin {
   constructor(options?: NSOLoginOptions) {}
 
-  /** ニンテンドーアカウント選択画面のURL */
-  loginURL: null | string = null;
-
-  /** ニンテンドーアカウント選択画面のパラメータ */
-  loginParams = {
-    state: "V6DSwHXbqC4rspCn_ArvfkpG1WFSvtNYrhugtfqOHsF6SYyX",
-    redirect_uri: "npf71b963c1b7b6d119://auth",
-    client_id: "71b963c1b7b6d119",
-    scope: "openid user user.birthday user.mii user.screenName",
-    response_type: "session_token_code",
-    session_token_code_challenge: "tYLPO5PxpK-DTcAHJXugD7ztvAZQlo0DQQp3au5ztuM",
-    session_token_code_challenge_method: "S256",
-  };
-
-  async pullLoginURL() {
-    const url = "https://accounts.nintendo.com/connect/1.0.0/authorize";
-    const response = await fetch(
-      `${url}?${new URLSearchParams(this.loginParams)}`
-    );
-    this.loginURL = response.url;
-  }
+  private state: string = base64url(crypto.randomBytes(36));
+  private session_token_code_verifier: string = base64url(
+    crypto.randomBytes(32)
+  );
+  private readonly baseURL: string =
+    "https://accounts.nintendo.com/connect/1.0.0/authorize";
+  private readonly client_id: string = "71b963c1b7b6d119";
 
   /**
    * @return ニンテンドーアカウント選択画面のURL
+   * 実行するごとにランダムなURLを生成すべき
    */
-  async getLoginURL() {
-    if (this.loginURL === null) {
-      await this.pullLoginURL();
-    }
-    return this.loginURL as string;
+  getLoginURL() {
+    // StateとVerifierは検証用に使う
+    this.state = base64url(crypto.randomBytes(36));
+    this.session_token_code_verifier = base64url(crypto.randomBytes(32));
+    const session_token_code_challenge: string = base64url(
+      crypto
+        .createHash("s256")
+        .update(this.session_token_code_verifier)
+        .digest()
+    );
+    const parameters = new URLSearchParams({
+      state: this.state,
+      redirect_uri: "npf71b963c1b7b6d119://auth",
+      client_id: this.client_id,
+      scope: "openid user user.birthday user.mii user.screenName",
+      response_type: "session_token_code",
+      session_token_code_challenge: session_token_code_challenge,
+      session_token_code_challenge_method: "S256",
+      theme: "login_form",
+    });
+    return `${this.baseURL}?${parameters}}`;
   }
 
   /** 「この人にする」のアドレス */
@@ -43,21 +48,21 @@ class NSOLogin {
 
   /** セッショントークン */
   sessionToken: null | string = null;
-  sessionTokenCodeVerifier = "OwaTAOolhambwvY3RXSD-efxqdBEVNnQkc0bBJ7zaak";
 
   /**
    * @param approvalLink 「この人にする」のアドレス
    */
   async pullSessionToken(approvalLink: string) {
+    // Index out of rangeはでないんだっけ
     const sessionTokenCode = /de=(.*?)&/.exec(approvalLink)?.[1];
     if (sessionTokenCode === undefined) {
       throw new Error("approvalLink must contain sessionTokenCode");
     }
     const url = "https://accounts.nintendo.com/connect/1.0.0/api/session_token";
     const params = {
-      client_id: this.loginParams.client_id,
+      client_id: this.client_id,
       session_token_code: sessionTokenCode,
-      session_token_code_verifier: this.sessionTokenCodeVerifier,
+      session_token_code_verifier: this.session_token_code_verifier,
     };
     const requestBody = new URLSearchParams(params).toString();
     const response = await fetch(url, {
@@ -68,12 +73,14 @@ class NSOLogin {
       },
     });
     if (response.status !== 200) {
+      // error_descriptionがあることは保証されるかどうか
       throw new Error(
         `Request failed with status ${response.status}: ${
           (await response.json()).error_description
         }`
       );
     }
+    // 同様
     const sessionToken = (await response.json()).session_token;
     if (typeof sessionToken !== "string") {
       throw new Error("Request succeeded but sessionToken is not found");
@@ -100,6 +107,9 @@ class NSOLogin {
   /** NSOアプリバージョン */
   nsoAppVersion: null | string = null;
 
+  // 常に最新のバージョンを返すわけではないっぽい
+  // https://apps.apple.com/app/id1234806557からスクレイピングするほうが確実
+  // とはいえAPIがAndroid版なので本来はPlayStoreをスクレイピングするほうが正しいのかも
   async pullNSOAppVersion() {
     const url = "https://itunes.apple.com/lookup?id=1234806557";
     const response = await fetch(url);
@@ -133,7 +143,7 @@ class NSOLogin {
   async pullAccessToken(sessionToken: string) {
     const url = "https://accounts.nintendo.com/connect/1.0.0/api/token";
     const params = {
-      client_id: this.loginParams.client_id,
+      client_id: this.client_id,
       grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer-session-token",
       session_token: sessionToken,
     };
