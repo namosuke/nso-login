@@ -6,9 +6,6 @@ export type FData = { f: string; timestamp: number; request_id: string };
 class NSOLogin {
   constructor(options?: NSOLoginOptions) {}
 
-  /** ニンテンドーアカウント選択画面のURL */
-  loginURL: null | string = null;
-
   /** ニンテンドーアカウント選択画面のパラメータ */
   loginParams = {
     state: "V6DSwHXbqC4rspCn_ArvfkpG1WFSvtNYrhugtfqOHsF6SYyX",
@@ -20,26 +17,58 @@ class NSOLogin {
     session_token_code_challenge_method: "S256",
   };
 
-  async pullLoginURL() {
-    const url = "https://accounts.nintendo.com/connect/1.0.0/authorize";
-    const response = await fetch(
-      `${url}?${new URLSearchParams(this.loginParams)}`
-    );
-    this.loginURL = response.url;
+  /** ニンテンドーアカウント選択画面のURL */
+  get loginURL() {
+    return `https://accounts.nintendo.com/connect/1.0.0/authorize?${new URLSearchParams(
+      this.loginParams
+    )}`;
   }
 
-  /**
-   * @return ニンテンドーアカウント選択画面のURL
-   */
-  async getLoginURL() {
-    if (this.loginURL === null) {
-      await this.pullLoginURL();
-    }
-    return this.loginURL as string;
-  }
+  /** NASID - アカウント選択画面のCookieに存在する */
+  nasid: null | string = null;
 
   /** 「この人にする」のアドレス */
   approvalLink: null | string = null;
+
+  /**
+   * @param nasid NASID
+   * @return 「この人にする」のアドレス
+   */
+  async pullApprovalLink(nasid: string) {
+    const response = await fetch(this.loginURL, {
+      headers: {
+        Cookie: `NASID=${nasid}`,
+      },
+    });
+    if (response.status !== 200) {
+      throw new Error(`Request failed with status ${response.status}`);
+    }
+    const html = await response.text();
+    const dataJsonHtml = /<div id="data" data-json='(.*?)'/.exec(html)?.[1];
+    const dataJson = dataJsonHtml
+      ?.replace(/&quot;/g, '"')
+      .replace(/&amp;/g, "&");
+    const data = JSON.parse(dataJson || "{}");
+    const approvalLink = data.redirectUri;
+    if (typeof approvalLink !== "string") {
+      throw new Error("Request succeeded but redirectUri is not found");
+    }
+    this.approvalLink = approvalLink;
+  }
+
+  /**
+   * @param nasid NASID
+   * @return 「この人にする」のアドレス
+   */
+  async getApprovalLink(nasid?: string) {
+    if (this.approvalLink === null) {
+      if (nasid === undefined && this.nasid === null) {
+        throw new Error("Must specify nasid");
+      }
+      await this.pullApprovalLink(nasid ?? (this.nasid as string));
+    }
+    return this.approvalLink as string;
+  }
 
   /** セッショントークン */
   sessionToken: null | string = null;
@@ -87,11 +116,8 @@ class NSOLogin {
    */
   async getSessionToken(approvalLink?: string) {
     if (this.sessionToken === null) {
-      if (approvalLink === undefined && this.approvalLink === null) {
-        throw new Error("Must specify approvalLink");
-      }
       await this.pullSessionToken(
-        approvalLink ?? (this.approvalLink as string)
+        approvalLink ?? this.approvalLink ?? (await this.getApprovalLink())
       );
     }
     return this.sessionToken as string;

@@ -3,9 +3,11 @@ import NSOLogin from "../src";
 const nsoLogin = new NSOLogin();
 
 (async () => {
-  const loginURL = await nsoLogin.getLoginURL();
+  const loginURL = nsoLogin.loginURL;
   console.log(loginURL);
-  const approvalLink = process.env.APPROVAL_LINK as string;
+  nsoLogin.nasid = process.env.NASID as string;
+  const approvalLink = await nsoLogin.getApprovalLink();
+  console.log(approvalLink);
   const sessionToken = await nsoLogin.getSessionToken(approvalLink);
   console.log(sessionToken);
   const nsoAppVersion = await nsoLogin.getNSOAppVersion();
