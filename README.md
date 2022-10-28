@@ -22,7 +22,11 @@ Before running programs, you need to get a something valid token and set to inst
 2. Open the URL on your browser.
 3. Login to your account.
 4. Copy link of red button that labeled "connect".
-5. The link is `approvalLink`. Set it like `nsoLogin.approvalLink = "npf71b963c1b7b6d119://auth..."`.
+5. The link is `approvalLink`. Set it to property:
+
+```ts
+nsoLogin.approvalLink = "npf71b963c1b7b6d119://auth#session_state=...";
+```
 
 > **Note**
 > approvalLink expires in 900 seconds.
@@ -77,7 +81,7 @@ import NSOLogin from "nso-login";
 const nsoLogin = new NSOLogin();
 
 (async () => {
-  const loginURL = await nsoLogin.getLoginURL();
+  const loginURL = nsoLogin.loginURL;
   console.log(loginURL);
   const approvalLink = process.env.APPROVAL_LINK as string;
   const sessionToken = await nsoLogin.getSessionToken(approvalLink);
